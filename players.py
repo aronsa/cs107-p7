@@ -221,7 +221,6 @@ class Player(Tile):
         deltaX = floor(self.speed[0] / fps * num)
         deltaY = floor(self.speed[1] / fps * num)
         self.move(deltaX,deltaY)
-    
 
     # Attempt to move the player (+x, +y) units, where x is in the
     # range {-1, 0, 1} and y is in the range {-1, 0, 1}. For example,
