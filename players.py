@@ -1,6 +1,7 @@
 # Tiles, Players, and NPCs
 import pygame, sys, os, json, random
 from pygame.locals import *
+from math import *
 
 # The priorities of various elements
 class Priority:
@@ -217,8 +218,10 @@ class Player(Tile):
     #  a tile to which it cannot move, you must set the `canMove`
     #  field to False (it should be set to True) otherwise.
     def clockTick(self,fps,num):
-        deltaX = 
-        return
+        deltaX = floor(self.speed[0] / fps * num)
+        deltaY = floor(self.speed[1] / fps * num)
+        self.move(deltaX,deltaY)
+    
 
     # Attempt to move the player (+x, +y) units, where x is in the
     # range {-1, 0, 1} and y is in the range {-1, 0, 1}. For example,
