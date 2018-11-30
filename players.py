@@ -331,7 +331,10 @@ class Stone(Player):
             self.board.removeTile(self)
             self.board.unregisterForClockTick(self)
             print("removed stone.")
-
+    
+    def move(self,x,y):
+        super().move(x,y)
+        print("s: ",self.getX(),self.getY())
     def __str__(self): return "stone"
 
 # A health pack gives the player life once they touch it.
@@ -433,8 +436,10 @@ class Squirrel(Player):
     def fireStone(self):
         loc = (self.getX()+self.movementVector[0],self.getY()+self.movementVector[1])
         if(self.canMoveTo(loc[0],loc[1]) and self.board.state.hp > 10):
+            print("created stone at ",loc)
             self.board.state.decrementFuel(10)
             nStone = Stone(loc,self.board)
+            print(nStone.getX(),nStone.getY())
             nStone.speed = (self.STONESPEED*self.movementVector[0],self.STONESPEED*self.movementVector[1])
             nStone.board.registerForClockTick(nStone)
             
@@ -514,7 +519,6 @@ class SquareAIFerret(Player):
     # `Squirrel`, your initial coordinate must be x + x1, y + y1.
     def fireStone(self):
         return
-
     # If we collide with a stone, we subtract 15 HP.
     def handleCollisionWith(self, other):
         # If we collided with the squirrel
