@@ -1,5 +1,5 @@
 # Tiles, Players, and NPCs
-import pygame, sys, os, json, random
+import pygame, sys, os, json, random, math
 from pygame.locals import *
 
 # The priorities of various elements
@@ -147,11 +147,13 @@ class Player(Tile):
         self.hp = 100
 
         # An x/y speed vector in "tiles per second"
-        self.speed = (0,0)
+        self.speed = (10,10)
 
         # Number of clock ticks since last move
         self.ticks = [0,0]
 
+        #Determines if the object can move or if it's hit an obstacle
+        self.canMove = True
         # Register for clock ticks
         self.board.registerForClockTick(self)
         
@@ -217,7 +219,28 @@ class Player(Tile):
     #  a tile to which it cannot move, you must set the `canMove`
     #  field to False (it should be set to True) otherwise.
     def clockTick(self,fps,num):
-        return
+        self.ticks[0] += num
+        self.ticks[1] += num
+
+        #ticks is in number of frames
+        if(self.canMove and math.floor(self.ticks[0]/fps) > self.speed[0]):
+            #time to attempt to move
+            try:
+                self.move(math.floor(self.ticks[0]/fps),0)
+                self.ticks[0]=self.ticks[0]%fps
+            except:
+                print("error moving movement of ",self)
+                self.canMove = False
+
+        if(self.canMove and math.floor(self.ticks[1]/fps) > self.speed[1]):
+            #time to attempt to move in ny direction
+            try:
+                self.move(0,math.floor(self.ticks[1]/fps))
+                self.ticks[1]=self.ticks[1]%fps
+            except:
+                print("error moving movement of ",self)
+                self.canMove = False
+            
 
     # Attempt to move the player (+x, +y) units, where x is in the
     # range {-1, 0, 1} and y is in the range {-1, 0, 1}. For example,
@@ -303,7 +326,11 @@ class Stone(Player):
     # - If the movement failed (e.g., because the stone hit a wall)
     # you should remove this tile from the board. 
     def clockTick(self,fps,num):
-        return
+        super().clockTick(fps,num)
+        if(not self.canMove):
+            self.board.removeTile(self)
+            self.board.unregisterForClockTick(self)
+            print("removed stone.")
 
     def __str__(self): return "stone"
 
@@ -333,8 +360,11 @@ class Health(Player):
     #   remove the tile from the board.
     #   - If it is not, it should not do anything.
     def handleCollisionWith(self,other):
-        return
-
+        if(other.isSquirrel()):
+            self.board.state.incrementFuel(15)
+            self.board.removeTile(self)
+            self.board.unregisterForClockTick(self)
+            
     def __str__(self): return "healthpack"
 
 # The main player in the game (i.e., the squirrel)
@@ -401,11 +431,16 @@ class Squirrel(Player):
     # - Ensure that you make the stone register for clock ticks
     # (otherwise it won't move)
     def fireStone(self):
-        return
-
+        loc = (self.getX()+self.movementVector[0],self.getY()+self.movementVector[1])
+        if(self.canMoveTo(loc[0],loc[1]) and self.board.state.hp > 10):
+            self.board.state.decrementFuel(10)
+            nStone = Stone(loc,self.board)
+            nStone.speed = (self.STONESPEED*self.movementVector[0],self.STONESPEED*self.movementVector[1])
+            nStone.board.registerForClockTick(nStone)
+            
     def move(self,x,y):
         super().move(x,y)
-        
+        print("we've moved by ",x,y) 
         # Once we've performed the move, we need to update the player
         # statistics. Specifically, we:
         #   - Subtract one fuel
@@ -424,7 +459,10 @@ class Squirrel(Player):
     #  - ferret <-- Subtract 15 fuel
     #  - stone  <-- Subtract 10 fuel
     def handleCollisionWith(self,other):
-        return
+        if(type(other)==Stone):
+            self.board.state.decrementFuel(10)
+        if(type(other)==SquareAIFerret):
+            self.board.state.decrementFuel(15)
 
     def __str__(self): return "squirrel"
 
@@ -468,7 +506,7 @@ class SquareAIFerret(Player):
     # --------------------------------------------------------------
     # TASK 7 [5 points]
     # --------------------------------------------------------------
-    
+
     # Fire a stone in a random direction, with speed vector (x1 *
     # self.SPEEDVECTOR, y1 * self.SPEEDVECTOR) where x1 and y1 are
     # both in [-1,1] but crucially x1 and y1 cannot *both* be 0
