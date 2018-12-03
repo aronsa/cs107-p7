@@ -514,6 +514,16 @@ class Squirrel(Player):
 # the board. 
 
 class SquareAIFerret(Player):
+    #turns out enums don't exist?
+    class MoveDirection():
+        def __init__(self):
+            self.RIGHT = (1,0)
+            self.DOWN = (0,1)
+            self.LEFT = (-1,0)
+            self.UP = (0,-1)
+
+            self.currentDirection = self.RIGHT
+
     def __init__(self, coordinate, board):
         super(SquareAIFerret, self).__init__(coordinate, board)
         self.nuts = 0
@@ -526,7 +536,11 @@ class SquareAIFerret(Player):
         self.tileType = "ferret"
         self.STONESPEED = 8
 
-    # --------------------------------------------------------------
+        self.STARTSQUARE = (self.getX(),self.getY())
+        self.shootStep = 0
+        self.moveStep = 0
+        self.moveDirection = self.MoveDirection() #this is just to start
+ # --------------------------------------------------------------
     # TASK 6 [10 points]
     # --------------------------------------------------------------
 
@@ -545,8 +559,26 @@ class SquareAIFerret(Player):
     # As a hint: I would suggest adding a `numTicks` member variable
     # to this class and then incrementing it upon each call to `move`.
     def move(self,x,y):
-        return
-
+        #handling shooting
+        if(self.shootStep % 7 == 0):
+            self.fireStone()
+        
+        self.shootStep += 1
+        
+        #handling directions.
+        if(self.moveStep % 5 == 0):
+            #move to the next side in the path
+            if(self.moveDirection.currentDirection == self.moveDirection.RIGHT):
+                self.moveDirection.currentDirection = self.moveDirection.DOWN
+            elif(self.moveDirection.currentDirection == self.moveDirection.DOWN):
+                self.moveDirection.currentDirection = self.moveDirection.LEFT
+            elif(self.moveDirection.currentDirection == self.moveDirection.UP):
+                self.moveDirection.currentDirection = self.moveDirection.RIGHT
+        
+        #move in the current direction
+        self.move(self.moveDirection.currentDirection[0],self.moveDirection.currentDirection[1])
+        self.moveStep +=1
+    
     # --------------------------------------------------------------
     # TASK 7 [5 points]
     # --------------------------------------------------------------
