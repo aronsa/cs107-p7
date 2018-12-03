@@ -13,8 +13,8 @@ class Priority:
 # An exception that gets thrown when a player executes an
 # invalid move.
 class InvalidMoveException(Exception):
-    pass
-
+    def __init__(self):
+        print("ran into invalid move exception.")
 # The representation of a single tile on the game board
 class Tile:
     def __init__(self, tileType):
@@ -219,27 +219,45 @@ class Player(Tile):
     #  a tile to which it cannot move, you must set the `canMove`
     #  field to False (it should be set to True) otherwise.
     def clockTick(self,fps,num):
-        self.ticks[0] += num
-        self.ticks[1] += num
+        #we should not do anything if we cannot move. ideally, we would deregister for clock ticks.
+        if(self.canMove):
+            #this determines the number of frames that have elapsed that we have not converted into movement yet.
+            self.ticks[0] += num
+            self.ticks[1] += num
 
-        #ticks is in number of frames
-        if(self.canMove and math.floor(self.ticks[0]/fps) > self.speed[0]):
-            #time to attempt to move
-            try:
-                self.move(math.floor(self.ticks[0]/fps),0)
-                self.ticks[0]=self.ticks[0]%fps
-            except:
-                print("error moving movement of ",self)
-                self.canMove = False
+            #this is a local variable to determine how much time has elapsed since a sprite has moved in a particular direction
+            timeElapsed = [
+                    math.floor(self.ticks[0]/fps),
+                    math.floor(self.ticks[1]/fps)
+                    ]
+            # finally, we must calculate the necissary movement this round.
 
-        if(self.canMove and math.floor(self.ticks[1]/fps) > self.speed[1]):
-            #time to attempt to move in ny direction
-            try:
-                self.move(0,math.floor(self.ticks[1]/fps))
-                self.ticks[1]=self.ticks[1]%fps
-            except:
-                print("error moving movement of ",self)
-                self.canMove = False
+            movementNeeded = [
+                    math.floor(self.speed[0]*timeElapsed[0]),
+                    math.floor(self.speed[1]*timeElapsed[1])
+                    ]
+            
+            
+            moveVector= [
+                    self.sign(movementNeeded[0]),
+                    self.sign(movementNeeded[1])
+                    ]
+            #first, we deal with movement in the x direction.
+            #if the amount of movement we should move over the time interval is greater than 0 (after having been floored to the nearest integer), lets move!
+            if(abs(movementNeeded[0])>0):
+                try:
+                    self.move(moveVector[0],0)
+                except:
+                    self.canMove = False
+                    print(self, "can no longer move. (x) by trying to move", moveVector[0])
+            
+            #same thing but with y.
+            if(abs(movementNeeded[1])>0):
+                try:
+                    self.move(0,moveVector[1])
+                except:
+                    self.canMove = False
+                    print(self, "can no longer move. (y) by trying to move",moveVector[1])
             
 
     # Attempt to move the player (+x, +y) units, where x is in the
@@ -251,6 +269,7 @@ class Player(Tile):
         # Check to ensure we can move there
         if (x < -1 or x > 1 or y < -1 or y > 1):
             # x and y must be in [-1,1]
+            print(self, "movement invalid input.")
             raise InvalidMoveException()
         if (tx >= 0 and tx < self.board.width
             and ty >= 0 and ty < self.board.height
@@ -261,6 +280,7 @@ class Player(Tile):
         else:
             # Either outside of the boundaries of the board or a wall
             # is there
+            print(self, "ran into boundary.")
             raise InvalidMoveException()
 
     # Check whether or not we can move to (x,y) I.e., is there a wall
@@ -333,8 +353,10 @@ class Stone(Player):
             print("removed stone.")
     
     def move(self,x,y):
+        print("stone moving ",x,y)
         super().move(x,y)
         print("s: ",self.getX(),self.getY())
+    
     def __str__(self): return "stone"
 
 # A health pack gives the player life once they touch it.
@@ -344,7 +366,7 @@ class Health(Player):
         self.nuts = 0
         self.pic = pygame.image.load(os.path.join("imgs/hospital.png"))
         self.priority = Priority.player
-        self.setSpeed((2,0))
+        self.setSpeed((0,-1))
         self.tileType = "healthpack"
 
     def getImage(self):
@@ -434,18 +456,30 @@ class Squirrel(Player):
     # - Ensure that you make the stone register for clock ticks
     # (otherwise it won't move)
     def fireStone(self):
-        loc = (self.getX()+self.movementVector[0],self.getY()+self.movementVector[1])
+        loc = (
+                self.getX()+self.movementVector[0],
+                self.getY()+self.movementVector[1]
+                )
+
         if(self.canMoveTo(loc[0],loc[1]) and self.board.state.hp > 10):
-            print("created stone at ",loc)
             self.board.state.decrementFuel(10)
             nStone = Stone(loc,self.board)
-            print(nStone.getX(),nStone.getY())
-            nStone.speed = (self.STONESPEED*self.movementVector[0],self.STONESPEED*self.movementVector[1])
-            nStone.board.registerForClockTick(nStone)
+            nStone.setSpeed((
+                    self.STONESPEED*self.movementVector[0],
+                    self.STONESPEED*self.movementVector[1]
+                    ))
+            print("created stone at ",loc)
+            print("movement vector: ",self.movementVector)
+            print("speed: ",nStone.speed[0],nStone.speed[1])
             
+            nStone.board.addTile(nStone)
+            nStone.board.registerForClockTick(nStone)
+            nStone.setSpeed((
+                    self.STONESPEED*self.movementVector[0],
+                    self.STONESPEED*self.movementVector[1]
+                    ))
     def move(self,x,y):
         super().move(x,y)
-        print("we've moved by ",x,y) 
         # Once we've performed the move, we need to update the player
         # statistics. Specifically, we:
         #   - Subtract one fuel
@@ -464,9 +498,9 @@ class Squirrel(Player):
     #  - ferret <-- Subtract 15 fuel
     #  - stone  <-- Subtract 10 fuel
     def handleCollisionWith(self,other):
-        if(type(other)==Stone):
+        if(other.tileType=="stone"):
             self.board.state.decrementFuel(10)
-        if(type(other)==SquareAIFerret):
+        if(other.tileType=="ferret"):
             self.board.state.decrementFuel(15)
 
     def __str__(self): return "squirrel"
