@@ -385,6 +385,8 @@ class Health(Player):
     #   remove the tile from the board.
     #   - If it is not, it should not do anything.
     def handleCollisionWith(self,other):
+        if(self.tileType != other.tileType):
+            print(self," collided with ",other)
         if(other.isSquirrel()):
             self.board.state.incrementFuel(15)
             self.board.removeTile(self)
@@ -498,11 +500,14 @@ class Squirrel(Player):
     #  - ferret <-- Subtract 15 fuel
     #  - stone  <-- Subtract 10 fuel
     def handleCollisionWith(self,other):
-        if(other.tileType=="stone"):
-            self.board.state.decrementFuel(10)
-        if(other.tileType=="ferret"):
-            self.board.state.decrementFuel(15)
-
+        if(other.tileType != self.tileType):
+            print(self,"collided  with ",other)
+            if(other.tileType=="stone"):
+                self.board.state.decrementFuel(10)
+            if(other.tileType=="ferret"):
+                self.board.state.decrementFuel(15)
+    
+    
     def __str__(self): return "squirrel"
 
 # A "square" AI player. This AI player is a ferret that walks around
@@ -556,9 +561,7 @@ class SquareAIFerret(Player):
     # If we collide with a stone, we subtract 15 HP.
     def handleCollisionWith(self, other):
         # If we collided with the squirrel
-        if (other.tileType == "stone"):
-            self.subtractHp(15)
-
+        return
     def getImage(self):
         return self.pic
 
