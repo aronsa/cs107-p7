@@ -1,7 +1,6 @@
 # Tiles, Players, and NPCs
 import pygame, sys, os, json, random, math
 from pygame.locals import *
-
 # The priorities of various elements
 class Priority:
     background = 4
@@ -150,7 +149,7 @@ class Player(Tile):
         self.speed = (10,10)
 
         # Number of clock ticks since last move
-        self.ticks = [0,0]
+        self.ticks = [self.speed[0],self.speed[1]]
 
         #Determines if the object can move or if it's hit an obstacle
         self.canMove = True
@@ -162,6 +161,7 @@ class Player(Tile):
         # It had better be a two-tuple
         assert(type(speed) == type((1,2)))
         self.speed = speed
+        self.ticks = [self.speed[0],self.speed[1]]
 
     # Several helper functions that will likely be useful in `clockTick`
     def sign(self,num):
@@ -350,12 +350,9 @@ class Stone(Player):
         if(not self.canMove):
             self.board.removeTile(self)
             self.board.unregisterForClockTick(self)
-            print("removed stone.")
     
     def move(self,x,y):
-        print("stone moving ",x,y)
         super().move(x,y)
-        print("s: ",self.getX(),self.getY())
     
     def __str__(self): return "stone"
 
@@ -480,6 +477,7 @@ class Squirrel(Player):
                     self.STONESPEED*self.movementVector[0],
                     self.STONESPEED*self.movementVector[1]
                     ))
+            nStone.move(self.movementVector[0],self.movementVector[1])
     def move(self,x,y):
         super().move(x,y)
         # Once we've performed the move, we need to update the player
@@ -559,10 +557,6 @@ class SquareAIFerret(Player):
     # As a hint: I would suggest adding a `numTicks` member variable
     # to this class and then incrementing it upon each call to `move`.
     def move(self,x,y):
-        if(self.shootStep % 7 == 0):
-            self.fireStone()
-             
-        self.shootStep += 1
         self.moveStep +=1
         if(self.moveStep <= 5):
             super().move(1,0)
@@ -575,6 +569,13 @@ class SquareAIFerret(Player):
         else:
             self.moveStep = 1
             super().move(1,0)
+
+        if(self.shootStep % 7 == 0):
+            try:
+                self.fireStone()
+            except:
+                print("shooters shoot.")
+        self.shootStep += 1
    # --------------------------------------------------------------
     # TASK 7 [5 points]
     # --------------------------------------------------------------
@@ -584,13 +585,47 @@ class SquareAIFerret(Player):
     # both in [-1,1] but crucially x1 and y1 cannot *both* be 0
     # (otherwise the stone would just sit there). Just as in
     # `Squirrel`, your initial coordinate must be x + x1, y + y1.
+    def generateDirection(self):
+        a = random.randint(-1,1)
+        b = random.randint(-1,1)
+        if(a==0 and b==0):
+            return generateDirection(self)
+        else:
+            return (a,b)
+    
     def fireStone(self):
-        print(self,"firing stone.")
+        movementVector = self.generateDirection()
+        loc = (
+                self.getX()+movementVector[0],
+                self.getY()+movementVector[1]
+                ) 
+            
+        nStone = Stone(loc,self.board)
+        nStone.setSpeed((
+                self.STONESPEED*movementVector[0],
+                self.STONESPEED*movementVector[1]
+                ))
+        print("created stone at ",loc)
+            
+        nStone.board.addTile(nStone)
 
-    # If we collide with a stone, we subtract 15 HP.
+        
+        nStone.setSpeed((
+                self.STONESPEED*movementVector[0],
+                self.STONESPEED*movementVector[1]
+                ))
+        nStone.board.registerForClockTick(nStone)
+        
+        nStone.setSpeed((
+                self.STONESPEED*movementVector[0],
+                self.STONESPEED*movementVector[1]
+                ))
+        
     def handleCollisionWith(self, other):
         # If we collided with the squirrel
-        return
+        if(other.tileType == "stone"):
+            self.subtractHp(15)
+    
     def getImage(self):
         return self.pic
 
@@ -608,6 +643,10 @@ class SquareAIFerret(Player):
     #  - If the hp now becomes below 0, this tile should be removed
     #  from the board.
     def subtractHp(self,hp):
-        return
-
+        self.hp -= hp
+        print("ferret hit. hp now ",self.hp)
+        if(self.hp<0):
+            print("removing ferret.")
+            self.board.removeTile(self)
+            self.board.unregisterForClockTick(self)
     def __str__(self): return "ferret"
